@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HelpingHeartscanner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<style>
+:root{
+  --bg:#eef0fc; --surface:#ffffff; --ink:#22204d; --muted:#6a6b94; --line:#dcdcf3;
+  --laser:#e3408f; --accent:#5a6cf0; --accent-ink:#ffffff; --stage:#15133a;
+  --grad:linear-gradient(135deg,#4f74f5,#e5509a);
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#15153a; --surface:#1f2049; --ink:#eef0ff; --muted:#a9acdc; --line:#34366d;
+    --laser:#ff72b6; --accent:#8c9bff; --accent-ink:#ffffff; --stage:#0b0b24; color-scheme:dark;
+    --grad:linear-gradient(135deg,#5b7bf7,#e0589c);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15153a; --surface:#1f2049; --ink:#eef0ff; --muted:#a9acdc; --line:#34366d;
+  --laser:#ff72b6; --accent:#8c9bff; --accent-ink:#ffffff; --stage:#0b0b24; color-scheme:dark;
+  --grad:linear-gradient(135deg,#5b7bf7,#e0589c);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);background-image:radial-gradient(60% 40% at 90% 0%,rgba(229,80,154,.16),transparent),radial-gradient(60% 40% at 0% 0%,rgba(79,116,245,.16),transparent);background-repeat:no-repeat;color:var(--ink);font:16px/1.5 "Avenir Next","Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+main{max-width:520px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.7rem;line-height:1.2;margin:0 0 4px;letter-spacing:-.01em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block}
+.sub{color:var(--muted);margin:0 0 16px;font-size:.92rem}
+.stage{position:relative;aspect-ratio:1/1;background:var(--stage);border-radius:14px;overflow:hidden}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.frame{position:absolute;inset:14%;pointer-events:none}
+.frame i{position:absolute;width:30px;height:30px;border:3px solid #fff;opacity:.9}
+.frame i:nth-child(1){top:0;left:0;border-right:0;border-bottom:0;border-top-left-radius:8px}
+.frame i:nth-child(2){top:0;right:0;border-left:0;border-bottom:0;border-top-right-radius:8px}
+.frame i:nth-child(3){bottom:0;left:0;border-right:0;border-top:0;border-bottom-left-radius:8px}
+.frame i:nth-child(4){bottom:0;right:0;border-left:0;border-top:0;border-bottom-right-radius:8px}
+.laser{position:absolute;left:0;right:0;height:2px;background:var(--laser);box-shadow:0 0 12px 2px var(--laser);display:none;animation:sweep 2.2s ease-in-out infinite alternate}
+.stage.on .laser{display:block}
+@keyframes sweep{from{top:0}to{top:100%}}
+.idle{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#c4cfd8;text-align:center;padding:24px}
+.idle strong{font-size:1.05rem;color:#fff}
+.stage.on .idle{display:none}
+.stage.on .frame{display:block}.stage .frame{display:none}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+button,.btn{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px 14px;border-radius:10px;cursor:pointer;min-height:44px}
+button.primary{background:var(--grad);color:#fff;border-color:transparent;flex:1 1 140px}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,.btn:focus-visible,input:focus-visible+.btn{outline:3px solid var(--laser);outline-offset:2px}
+input[type=file]{position:absolute;opacity:0;width:1px;height:1px}
+.status{font-size:.85rem;color:var(--muted);margin:0 0 4px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:12px}
+.card h2{font-size:1rem;margin:0 0 8px}
+.kind{display:inline-block;font-size:.8rem;font-weight:600;padding:2px 10px;border-radius:99px;background:var(--bg);border:1px solid var(--line);color:var(--accent);margin-right:6px}
+.val{font:.95rem/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word;margin:10px 0}
+.empty{color:var(--muted);margin:0}
+.hist{list-style:none;margin:0;padding:0}
+.hist li{border-top:1px solid var(--line)}
+.hist li:first-child{border-top:0}
+.hist button{all:unset;display:block;width:100%;padding:10px 0;cursor:pointer;box-sizing:border-box}
+.hist button:focus-visible{outline:3px solid var(--laser);outline-offset:2px}
+.hist .v{display:block;font:.9rem ui-monospace,Menlo,Consolas,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist .m{font-size:.78rem;color:var(--muted)}
+.head{display:flex;justify-content:space-between;align-items:center}
+.head button{min-height:36px;padding:4px 10px;font-weight:500}
+.err{color:var(--laser)}
+@media (prefers-reduced-motion:reduce){.laser{animation:none;top:50%}}
+</style>
+</head>
+<body>
+<main>
+  <h1>HelpingHeartscanner</h1>
+  <p class="sub">Point your camera at a code, or upload a photo of one. Everything runs on your device.</p>
+
+  <div class="stage" id="stage">
+    <video id="video" playsinline muted></video>
+    <div class="frame"><i></i><i></i><i></i><i></i></div>
+    <div class="laser"></div>
+    <div class="idle"><strong>Camera is off</strong><span>Press “Start camera” to begin scanning.</span></div>
+  </div>
+
+  <div class="row">
+    <button class="primary" id="startBtn">Start camera</button>
+    <button id="flipBtn" disabled>Flip camera</button>
+    <button id="torchBtn" disabled>Torch</button>
+    <label style="position:relative">
+      <input type="file" id="file" accept="image/*">
+      <span class="btn" style="display:inline-flex;align-items:center">Upload image</span>
+    </label>
+  </div>
+  <p class="status" id="status" role="status"></p>
+
+  <section class="card" id="result" aria-live="polite">
+    <h2>Result</h2>
+    <p class="empty" id="resEmpty">Nothing scanned yet. Results appear here.</p>
+    <div id="resBody" hidden>
+      <span class="kind" id="kind"></span><span class="kind" id="fmt"></span>
+      <div class="val" id="value"></div>
+      <div id="extra"></div>
+      <div class="row" style="margin-bottom:0">
+        <button id="copyBtn">Copy</button>
+        <button id="openBtn" hidden>Open link</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="head"><h2 style="margin:0">History</h2><button id="clearBtn" hidden>Clear</button></div>
+    <p class="empty" id="histEmpty" style="margin-top:8px">Scans you make are saved here, on this device only.</p>
+    <ul class="hist" id="hist"></ul>
+  </section>
+</main>
+
+<script>
+(function(){
+  var $ = function(id){return document.getElementById(id)};
+  var video=$('video'), stage=$('stage'), statusEl=$('status');
+  var stream=null, track=null, facing='environment', detector=null, engine='', scanning=false;
+  var raf=0, lastT=0, busy=false, lastVal='', lastTime=0, torchOn=false, current=null;
+  var HKEY='scanner-history-v1', history=[];
+
+  function say(msg, isErr){ statusEl.textContent=msg; statusEl.className='status'+(isErr?' err':''); }
+
+  // Storage helpers (may be unavailable, so always guarded)
+  function loadHist(){ try{ history=JSON.parse(localStorage.getItem(HKEY)||'[]'); }catch(e){ history=[]; } if(!Array.isArray(history)) history=[]; }
+  function saveHist(){ try{ localStorage.setItem(HKEY, JSON.stringify(history)); }catch(e){} }
+
+  // Pick the best available decoder
+  async function initEngine(){
+    if('BarcodeDetector' in window){
+      try{
+        var fm = await BarcodeDetector.getSupportedFormats();
+        detector = new BarcodeDetector({formats: fm});
+        engine='Built-in detector: QR codes and barcodes';
+        return;
+      }catch(e){}
+    }
+    if(window.jsQR){ engine='Fallback decoder: QR codes only (use Chrome or Edge for barcodes)'; }
+    else { engine='No decoder available. Check your connection and reload.'; }
+  }
+
+  async function decode(src, w, h){
+    if(detector){
+      var codes = await detector.detect(src);
+      if(codes.length) return {value:codes[0].rawValue, format:codes[0].format};
+      return null;
+    }
+    if(window.jsQR){
+      var scale = Math.min(1, 900/Math.max(w,h));
+      var cw=Math.round(w*scale), ch=Math.round(h*scale);
+      var c=decode.c||(decode.c=document.createElement('canvas'));
+      c.width=cw; c.height=ch;
+      var ctx=c.getContext('2d',{willReadFrequently:true});
+      ctx.drawImage(src,0,0,cw,ch);
+      var r=jsQR(ctx.getImageData(0,0,cw,ch).data,cw,ch);
+      if(r) return {value:r.data, format:'qr_code'};
+    }
+    return null;
+  }
+
+  // Camera
+  async function startCamera(){
+    stopCamera();
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing}, width:{ideal:1280}}, audio:false});
+    }catch(e){
+      var m = (e && e.name==='NotAllowedError') ? 'Camera access was blocked. Allow it in your browser’s site settings, or upload an image instead.'
+            : (e && e.name==='NotFoundError') ? 'No camera found on this device. Upload an image instead.'
+            : 'Couldn’t open the camera here. Try opening the page in its own tab, or upload an image.';
+      say(m,true); return;
+    }
+    video.srcObject=stream; track=stream.getVideoTracks()[0];
+    try{ await video.play(); }catch(e){}
+    stage.classList.add('on'); scanning=true;
+    $('startBtn').textContent='Stop camera';
+    $('flipBtn').disabled=false;
+    var caps = (track.getCapabilities && track.getCapabilities())||{};
+    $('torchBtn').disabled = !caps.torch; torchOn=false;
+    say('Scanning. '+engine);
+    raf=requestAnimationFrame(tick);
+  }
+  function stopCamera(){
+    scanning=false; cancelAnimationFrame(raf);
+    if(stream){ stream.getTracks().forEach(function(t){t.stop()}); }
+    stream=null; track=null; video.srcObject=null;
+    stage.classList.remove('on');
+    $('startBtn').textContent='Start camera';
+    $('flipBtn').disabled=true; $('torchBtn').disabled=true;
+  }
+  function tick(t){
+    if(!scanning) return;
+    raf=requestAnimationFrame(tick);
+    if(busy || t-lastT<150 || video.readyState<2 || !video.videoWidth) return;
+    lastT=t; busy=true;
+    decode(video, video.videoWidth, video.videoHeight)
+      .then(function(r){ if(r) handle(r,true); })
+      .catch(function(){})
+      .then(function(){ busy=false; });
+  }
+
+  // Results
+  function classify(v){
+    var s=v.trim();
+    if(/^https?:\/\//i.test(s)) return {kind:'Link', url:s};
+    if(/^WIFI:/i.test(s)) return {kind:'Wi‑Fi network', wifi:parseWifi(s)};
+    if(/^mailto:/i.test(s) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return {kind:'Email'};
+    if(/^tel:/i.test(s) || /^\+?[\d\s\-()]{7,}$/.test(s) && /\d{7,}/.test(s.replace(/\D/g,'')) && s.replace(/\D/g,'').length<=15 && /^\+/.test(s)) return {kind:'Phone number'};
+    if(/^geo:/i.test(s)) return {kind:'Location'};
+    if(/^BEGIN:VCARD/i.test(s)) return {kind:'Contact card'};
+    if(/^\d{8,14}$/.test(s)) return {kind:'Product number'};
+    return {kind:'Text'};
+  }
+  function parseWifi(s){
+    var o={}; s.replace(/^WIFI:/i,'').split(/(?<!\\);/).forEach(function(p){
+      var i=p.indexOf(':'); if(i>0) o[p.slice(0,i)] = p.slice(i+1).replace(/\\([;,:\\"])/g,'$1');
+    });
+    return {ssid:o.S||'', pass:o.P||'', type:o.T||'None'};
+  }
+  function prettyFormat(f){ return String(f||'').replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase()}).replace('Qr','QR'); }
+
+  function show(r){
+    current=r; var c=classify(r.value);
+    $('resEmpty').hidden=true; $('resBody').hidden=false;
+    $('kind').textContent=c.kind; $('fmt').textContent=prettyFormat(r.format);
+    $('value').textContent=r.value;
+    var ex=$('extra'); ex.textContent='';
+    if(c.wifi){
+      var p=document.createElement('p'); p.className='empty';
+      p.textContent='Network: '+(c.wifi.ssid||'unknown')+' • Security: '+c.wifi.type+(c.wifi.pass?' • Password: '+c.wifi.pass:'');
+      ex.appendChild(p);
+    }
+    var ob=$('openBtn'); ob.hidden=!c.url; ob._url=c.url||'';
+  }
+  function handle(r, live){
+    var now=Date.now();
+    if(live && r.value===lastVal && now-lastTime<3000){ lastTime=now; return; }
+    lastVal=r.value; lastTime=now;
+    show(r);
+    history.unshift({value:r.value, format:r.format, t:now});
+    history=history.slice(0,30); saveHist(); renderHist();
+    feedback();
+    say('Code found.');
+  }
+  function feedback(){
+    try{ if(navigator.vibrate) navigator.vibrate(60); }catch(e){}
+    try{
+      var A=window.AudioContext||window.webkitAudioContext; if(!A) return;
+      var ac=feedback.ac||(feedback.ac=new A()), o=ac.createOscillator(), g=ac.createGain();
+      o.frequency.value=880; g.gain.value=.08; o.connect(g); g.connect(ac.destination);
+      o.start(); o.stop(ac.currentTime+.09);
+    }catch(e){}
+  }
+
+  function renderHist(){
+    var ul=$('hist'); ul.textContent='';
+    $('histEmpty').hidden=history.length>0; $('clearBtn').hidden=history.length===0;
+    history.forEach(function(h){
+      var li=document.createElement('li'), b=document.createElement('button');
+      var v=document.createElement('span'), m=document.createElement('span');
+      v.className='v'; v.textContent=h.value;
+      m.className='m'; m.textContent=prettyFormat(h.format)+' • '+new Date(h.t).toLocaleString([], {dateStyle:'medium', timeStyle:'short'});
+      b.appendChild(v); b.appendChild(m);
+      b.addEventListener('click',function(){ show(h); window.scrollTo({top:$('result').offsetTop-12, behavior:'smooth'}); });
+      li.appendChild(b); ul.appendChild(li);
+    });
+  }
+
+  // Events
+  $('startBtn').addEventListener('click',function(){ scanning ? (stopCamera(), say('Camera stopped.')) : startCamera(); });
+  $('flipBtn').addEventListener('click',function(){ facing = facing==='environment' ? 'user' : 'environment'; startCamera(); });
+  $('torchBtn').addEventListener('click',async function(){
+    try{ torchOn=!torchOn; await track.applyConstraints({advanced:[{torch:torchOn}]}); }
+    catch(e){ torchOn=false; say('Torch isn’t available on this camera.',true); }
+  });
+  $('file').addEventListener('change',async function(e){
+    var f=e.target.files[0]; e.target.value=''; if(!f) return;
+    say('Reading image…');
+    try{
+      var bmp=await createImageBitmap(f);
+      var r=await decode(bmp,bmp.width,bmp.height);
+      if(bmp.close) bmp.close();
+      if(r) handle(r,false); else say('No code found in that image. Try a sharper, closer photo.',true);
+    }catch(err){ say('Couldn’t read that file. Choose a JPG, PNG or WebP image.',true); }
+  });
+  $('copyBtn').addEventListener('click',async function(){
+    if(!current) return;
+    try{ await navigator.clipboard.writeText(current.value); say('Copied.'); }
+    catch(e){
+      var ta=document.createElement('textarea'); ta.value=current.value; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); say('Copied.'); }catch(x){ say('Couldn’t copy. Select the text and copy it manually.',true); }
+      ta.remove();
+    }
+  });
+  $('openBtn').addEventListener('click',function(){
+    var u=$('openBtn')._url; if(u) window.open(u,'_blank','noopener,noreferrer');
+  });
+  $('clearBtn').addEventListener('click',function(){ history=[]; saveHist(); renderHist(); });
+  document.addEventListener('visibilitychange',function(){ if(document.hidden && scanning){ stopCamera(); say('Camera stopped while the tab was hidden.'); } });
+
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ $('startBtn').disabled=true; }
+  loadHist(); renderHist();
+  initEngine().then(function(){ say(engine); });
+})();
+</script>
+</body>
+</html>
